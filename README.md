@@ -3,9 +3,8 @@
 
 ## WaveType
 
-???+ info
-	This can be access in `WaveHelper.WaveType`
-	
+Info : This can be access in `WaveHelper.WaveType`
+
 
 |Value|Enumerator|Comment|
 |:--|:--|:--|
@@ -24,26 +23,25 @@
 
 ## Functions
 
-???+ info
-	This can be access in `WaveHelper`
-	
+Info : This can be access in `WaveHelper`
+
 
 ### GetVersion ()
-#### int GetVersion () {: .copyable aria-label='Functions' }
+#### int GetVersion ()
 Returns the version of `WaveHelper`
 Can be access too by `WaveHelper.Version`
 
 
 ### AddCallback ()
-#### void AddCallback ([WaveCallbacks](README.md#wavecallbacks), function Function, int ExtraParam, [CallbackPriority](https://wofsauge.github.io/IsaacDocs/rep/enums/CallbackPriority.html priority) {: .copyable aria-label='Functions' }
+#### void AddCallback ([WaveCallbacks](README.md#wavecallbacks), function Function, int ExtraParam, CallbackPriority)
 
 
 ### RemoveCallback ()
-#### void RemoveCallback ([WaveCallbacks](README.md#wavecallbacks), function Function) {: .copyable aria-label='Functions' }
+#### void RemoveCallback ([WaveCallbacks](README.md#wavecallbacks), function Function)
 
 
 ### RunCallback ()
-#### void RunCallback ([WaveCallbacks](README.md#wavecallbacks), int ExtraParam, arg1, arg2) {: .copyable aria-label='Functions' }
+#### void RunCallback ([WaveCallbacks](README.md#wavecallbacks), int ExtraParam, arg1, arg2)
 
 
 ### GetWave ()
@@ -66,13 +64,10 @@ Returns `false` if is not greed mode or the ultra greed floor
 
 ## WaveCallbacks
 
-???+ info
-	This can be access in `WaveHelper.WaveCallbacks`
-	
+Info : This can be access in `WaveHelper.WaveCallbacks`
 
-???+ warning "Warning"
-	`WaveType.WAVE_GIDEON` doesn't run if the `WaveType` is `nil` 
-	
+Warning : `WaveType.WAVE_GIDEON` doesn't run if the `WaveType` is `nil` 
+
 
 ### WC_WAVE_START
 
@@ -94,9 +89,8 @@ Returns `false` if is not greed mode or the ultra greed floor
 |:--|:--|:--|:--|
 |3 |WC_WAVE_CLEAR {: .copyable } | (int CurrentWaveNum, <br>[WaveType](README.md#wavetype)) | [WaveType](README.md#wavetype) |
 
-???+ info "Info"
-	This callback may rarely run in greed mode.
-	
+Info : This callback may rarely run in greed mode.
+
 
 ### WC_WAVE_FINISH
 
