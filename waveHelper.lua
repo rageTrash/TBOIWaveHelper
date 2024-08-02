@@ -1,4 +1,4 @@
-local VERSION = 2.1
+local VERSION = 2.5
 
 
 if WaveHelper and WaveHelper.Version ~= nil and WaveHelper.Version >= VERSION then return end
@@ -140,7 +140,7 @@ function WaveHelper:RunCallback(callback, param, ...)
 	end
 
 	for _, call in ipairs(callbacks) do
-		if not call.param or not param or CheckGroupType(call.param, param) then
+		if not call.param or not param or (call.param ~= WaveType.WAVE_GIDEON and CheckGroupType(call.param, param)) then
 			call.fun({}, ...)
 		end
 		
@@ -158,10 +158,11 @@ end
 
 function WaveHelper:IsValidWaveRoom()
 	if game:IsGreedMode() then return false end
-	local rType = game:GetRoom():GetType()
+	local roomData = game:GetLevel():GetCurrentRoomDesc().Data
+	local rType = roomData.Type
 	return (rType == RoomType.ROOM_CHALLENGE or
 			rType == RoomType.ROOM_BOSSRUSH or
-			(rType == RoomType.ROOM_BOSS and #Isaac.FindByType(EntityType.ENTITY_GIDEON) > 0))
+			(rType == RoomType.ROOM_BOSS and roomData.Subtype == 83))
 end
 
 function WaveHelper:IsGreedMainRoom()
@@ -171,38 +172,37 @@ end
 
 
 
-local function CheckNRunCallback(callID, check, arg1, arg2, doAfter)
+local function CheckNRunCallback(callID, check, waveType, arg1, arg2, doAfter)
 	if not check or not check() then return end
-	WaveHelper:RunCallback(callID, wFlags, arg1, arg2)
+	WaveHelper:RunCallback(callID, waveType, arg1, arg2)
 
 	if doAfter then doAfter() end
 end
 
 
-local LastWave = 0
 local EnemieCount = 0
 local function Waves()
 	local room = game:GetRoom()
 	local rType = room:GetType()
 	local IsGideon = false
-	local wFlags = 0
+	local wType = 0
 	local conEnemies = 0
 
 	local start = function() return not WaveHelper.SaveData.WaveStarted and room:IsAmbushActive() end
 	local finish = function() return WaveHelper.SaveData.WaveStarted and room:IsAmbushDone() end
 
 	if rType == RoomType.ROOM_CHALLENGE then
-		wFlags = WaveType.WAVE_CHALLENGE +1
-		if game:GetLevel():HasBossChallenge() then wFlags = wFlags +1 end
+		wType = WaveType.WAVE_CHALLENGE_NORMAL
+		if game:GetLevel():HasBossChallenge() then wType = WaveType.WAVE_CHALLENGE_BOSS end
 
 		conEnemies = Isaac.CountEnemies()
 
 	elseif rType == RoomType.ROOM_BOSSRUSH then
-		wFlags = WaveType.WAVE_BOSSRUSH
+		wType = WaveType.WAVE_BOSSRUSH
 		conEnemies = Isaac.CountBosses()
 
-	elseif rType == RoomType.ROOM_BOSS and #Isaac.FindByType(EntityType.ENTITY_GIDEON) > 0 then
-		wFlags = WaveType.WAVE_GIDEON
+	elseif rType == RoomType.ROOM_BOSS and game:GetLevel():GetCurrentRoomDesc().Data.Subtype == 83 then
+		wType = WaveType.WAVE_GIDEON
 		conEnemies = Isaac.CountEnemies() - #Isaac.FindByType(EntityType.ENTITY_GIDEON)
 
 		start = function() return not WaveHelper.SaveData.WaveStarted and not room:IsClear() end
@@ -213,7 +213,8 @@ local function Waves()
 	local WaveNum = WaveHelper.SaveData.WaveCount or 0
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
 		start,
-		wFlags, nil,
+		wType,
+		wType, nil,
 		function()
 			WaveHelper.SaveData.WaveStarted = true
 			WaveHelper.SaveData.WaveCount = WaveNum +1
@@ -221,19 +222,21 @@ local function Waves()
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_CLEAR,
 		function() return conEnemies == 0 and EnemieCount > conEnemies end,
-		WaveNum, wFlags)
+		wType,
+		WaveNum-1, wType)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_CHANGE,
 		function() return EnemieCount == 0 and EnemieCount < conEnemies end,
-		WaveNum, wFlags,
+		wType,
+		WaveNum, wType,
 		function()
-			LastWave = WaveNum
 			WaveHelper.SaveData.WaveCount = WaveNum +1
 		end)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
 		finish,
-		wFlags, nil,
+		wType,
+		wType, nil,
 		function()
 			WaveHelper.SaveData = {}
 		end)
@@ -245,31 +248,38 @@ local GreedLastWave = 0
 local lastRoomClearState = true
 local function WavesGreed()
 	local conGreedWave = game:GetLevel().GreedModeWave
-	local wFlags = WaveType.WAVE_GREED +1
+	local wType = WaveType.WAVE_GREED_NORMAL
 
 	if conGreedWave >= game:GetGreedBossWaveNum() then
-		if conGreedWave == game:GetGreedBossWaveNum() +2 then wFlags = wFlags  +1 end
-		wFlags = wFlags +1
+		if conGreedWave == game:GetGreedBossWaveNum() +2 then
+			wType = WaveType.WAVE_GREED_EXTRABOSS
+		else
+			wType = WaveType.WAVE_GREED_BOSS
+		end
 	end
 
 	local conRoomClear = game:GetRoom():IsClear()
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
 		function() return lastRoomClearState and not conRoomClear end,
-		wFlags)
+		wType,
+		wType)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_CLEAR,
 		function() return not lastRoomClearState and conRoomClear and conGreedWave == GreedLastWave end,
-		conGreedWave, wFlags)
+		wType,
+		conGreedWave, wType)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_CHANGE,
 		function() return not conRoomClear and conGreedWave > GreedLastWave end,
-		conGreedWave, wFlags,
+		wType,
+		conGreedWave, wType,
 		function() GreedLastWave = conGreedWave end)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
 		function() return not lastRoomClearState and conRoomClear end,
-		wFlags)
+		wType,
+		wType)
 
 	lastRoomClearState = conRoomClear
 end

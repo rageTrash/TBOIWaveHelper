@@ -25,7 +25,7 @@ local function TestStart(_, wType)
 	print((FlagsToName(wType) .." Wave Started"))
 end
 local function TestClear(_, waveNum, wType)
-	print((FlagsToName(wType) .." Clearing Wave ".. waveNum))
+	print((FlagsToName(wType) .." Clear Wave ".. waveNum))
 end
 local function TestChange(_, waveNum, wType)
 	print((FlagsToName(wType) .." Wave ".. waveNum))
@@ -36,11 +36,20 @@ end
 
 
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, TestStart)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, TestChange)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, TestClear)
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, TestChange)
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, TestFinish)
 
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, TestStart, WaveType.WAVE_GIDEON)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, TestChange, WaveType.WAVE_GIDEON)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, TestChange, WaveType.WAVE_GIDEON)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, TestFinish, WaveType.WAVE_GIDEON)
+
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, function()
+	print("Gideon Start Check")
+end, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, function()
+	print("Gideon Wave Clear")
+end, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, function(_, waveNum)
+	print(("Gideon Wave Change "..waveNum))
+end, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, function()
+	print("Gideon Wave Finish")
+end, WaveType.WAVE_GIDEON)
