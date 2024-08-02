@@ -1,4 +1,4 @@
-local VERSION = 2.5
+local VERSION = 2.6
 
 
 if WaveHelper and WaveHelper.Version ~= nil and WaveHelper.Version >= VERSION then return end
@@ -214,7 +214,7 @@ local function Waves()
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
 		start,
 		wType,
-		wType, nil,
+		WaveNum, wType,
 		function()
 			WaveHelper.SaveData.WaveStarted = true
 			WaveHelper.SaveData.WaveCount = WaveNum +1
@@ -236,7 +236,7 @@ local function Waves()
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
 		finish,
 		wType,
-		wType, nil,
+		WaveNum-1, wType,
 		function()
 			WaveHelper.SaveData = {}
 		end)
@@ -263,7 +263,7 @@ local function WavesGreed()
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
 		function() return lastRoomClearState and not conRoomClear end,
 		wType,
-		wType)
+		conGreedWave, wType)
 
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_CLEAR,
 		function() return not lastRoomClearState and conRoomClear and conGreedWave == GreedLastWave end,
@@ -279,7 +279,7 @@ local function WavesGreed()
 	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
 		function() return not lastRoomClearState and conRoomClear end,
 		wType,
-		wType)
+		conGreedWave, wType)
 
 	lastRoomClearState = conRoomClear
 end

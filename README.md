@@ -73,7 +73,7 @@ Warning : `WaveType.WAVE_GIDEON` doesn't run if the `WaveType` is `nil`
 
 |ID|Name|Function Args|Optional Args|
 |:--|:--|:--|:--|
-|1 |WC_WAVE_START | ([WaveType](README.md#wavetype)) | [WaveType](README.md#wavetype) |
+|1 |WC_WAVE_START | (int CurrentWaveNum, <br>[WaveType](README.md#wavetype)) | [WaveType](README.md#wavetype) |
 
 
 ### WC_WAVE_CHANGE
@@ -96,7 +96,7 @@ Info : This callback may rarely run in greed mode.
 
 |ID|Name|Function Args|Optional Args|
 |:--|:--|:--|:--|
-|4 |WC_WAVE_FINISH | ([WaveType](README.md#wavetype)) | [WaveType](README.md#wavetype) |
+|4 |WC_WAVE_FINISH | (int CurrentWaveNum, <br>[WaveType](README.md#wavetype)) | [WaveType](README.md#wavetype) |
 
 
 

@@ -21,8 +21,8 @@ local function FlagsToName(wType)
 end
 
 
-local function TestStart(_, wType)
-	print((FlagsToName(wType) .." Wave Started"))
+local function TestStart(_, waveNum, wType)
+	print((FlagsToName(wType) .." Wave Started ".. waveNum))
 end
 local function TestClear(_, waveNum, wType)
 	print((FlagsToName(wType) .." Clear Wave ".. waveNum))
@@ -30,8 +30,8 @@ end
 local function TestChange(_, waveNum, wType)
 	print((FlagsToName(wType) .." Wave ".. waveNum))
 end
-local function TestFinish(_, wType)
-	print((FlagsToName(wType) .." Wave Finish"))
+local function TestFinish(_, waveNum, wType)
+	print((FlagsToName(wType) .." Wave Finish ".. waveNum))
 end
 
 
