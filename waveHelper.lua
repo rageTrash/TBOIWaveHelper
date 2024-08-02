@@ -1,4 +1,4 @@
-local VERSION = 2
+local VERSION = 2.1
 
 
 if WaveHelper and WaveHelper.Version ~= nil and WaveHelper.Version >= VERSION then return end
@@ -14,25 +14,29 @@ if WaveHelper.Game == nil then WaveHelper.Game = Game() end
 local game = WaveHelper.Game
 
 
-
-WaveHelper.WaveFlags = {
-	WAVE_CHALLENGE = 1 << 0, -- Challenge room
-	WAVE_NORMAL = 1 << 1,	-- Wave type
-	WAVE_BOSS = 1 << 2,		-- Wave type
-	WAVE_BOSSRUSH = 1 << 3,	-- Boss rush room
-	WAVE_GREED = 1 << 4,	-- Greed mode
-	WAVE_GIDEON = 1 << 5,	-- Gideon boss room
+WaveHelper.WaveType = {
+	ALL_WAVES = -1,
+	WAVE_CHALLENGE = 0,
+	WAVE_CHALLENGE_NORMAL = 1,
+	WAVE_CHALLENGE_BOSS = 2,
+	WAVE_BOSSRUSH = 10,
+	WAVE_GREED = 20,
+	WAVE_GREED_NORMAL = 21,
+	WAVE_GREED_BOSS = 22,
+	WAVE_GREED_EXTRABOSS = 23, WAVE_GREED_DEALBOSS = 23,-- extra boss fight in Greed mode
+	WAVE_GIDEON = 30,
 }
-WaveHelper.WaveFlags.ALL_WAVE = (1 << 6) -1 - ( WaveHelper.WaveFlags.WAVE_NORMAL | WaveHelper.WaveFlags.WAVE_BOSS )
+
 
 WaveHelper.WaveCallbacks = {
 	WC_WAVE_START = 1,
 	WC_WAVE_CHANGE = 2,
-	WC_WAVE_FINISH = 3,
+	WC_WAVE_CLEAR = 3,
+	WC_WAVE_FINISH = 4,
 }
 
 
-local WaveFlags = WaveHelper.WaveFlags
+local WaveType = WaveHelper.WaveType
 local WaveCallbacks = WaveHelper.WaveCallbacks
 
 WaveHelper._callbacks = WaveHelper._callbacks or {
@@ -42,6 +46,37 @@ WaveHelper._callbacks = WaveHelper._callbacks or {
 local json = include("json")
 
 local function IsOldVersion() return VERSION < WaveHelper.Version end
+
+
+
+local WaveGroupTypes = {
+	[WaveType.WAVE_CHALLENGE] = {
+		[WaveType.WAVE_CHALLENGE_NORMAL] = true,
+		[WaveType.WAVE_CHALLENGE_BOSS] = true,
+	},
+	[WaveType.WAVE_CHALLENGE_NORMAL] = { [WaveType.WAVE_CHALLENGE] = true },
+	[WaveType.WAVE_CHALLENGE_BOSS] = { [WaveType.WAVE_CHALLENGE] = true },
+	[WaveType.WAVE_GREED] = {
+		[WaveType.WAVE_GREED_NORMAL] = true,
+		[WaveType.WAVE_GREED_BOSS] = true,
+		[WaveType.WAVE_GREED_EXTRABOSS] = true,
+	},
+	[WaveType.WAVE_GREED_NORMAL] = { [WaveType.WAVE_GREED] = true},
+	[WaveType.WAVE_GREED_BOSS] = {
+		[WaveType.WAVE_GREED] = true,
+		[WaveType.WAVE_GREED_EXTRABOSS] = true,
+	},
+	[WaveType.WAVE_GREED_EXTRABOSS] = { [WaveType.WAVE_GREED] = true },
+}
+
+
+
+local function CheckGroupType(callParam, param)
+	if callParam == -1 or param == -1 or callParam == param then return true end
+	if not WaveGroupTypes[callParam] then return false end
+	return WaveGroupTypes[callParam][param] == true
+end
+
 
 
 local function LoadData(_, continued)
@@ -61,6 +96,11 @@ Mod:AddCallback(ModCallbacks.MC_PRE_GAME_EXIT, SaveData)
 Mod:AddCallback(ModCallbacks.MC_POST_NEW_LEVEL, SaveData)
 
 
+
+
+function WaveHelper:GetVersion() return WaveHelper.Version end
+
+
 function WaveHelper:AddCallback(callback, fun, param, priority)
 	local priority = priority or 0
 	local callbacks = WaveHelper._callbacks[callback] or {}
@@ -74,7 +114,6 @@ function WaveHelper:AddCallback(callback, fun, param, priority)
 		end
 	end
 
-	--print(( "Callback : "..callback.." Function : ".. tostring(fun) .." Param : ".. tostring(param) .." Priority : ".. priority))
 	table.insert(WaveHelper._callbacks[callback], pos, {fun = fun, param= param, priority = priority})
 end
 
@@ -88,12 +127,11 @@ function WaveHelper:RemoveCallback(callback, fun)
 end
 
 function WaveHelper:RunCallback(callback, param, ...)
-	--print( ("Callback ID : ".. callback .."\nWave Flags : ".. tostring(param)) )
 	local callbacks = WaveHelper._callbacks[callback] or {}
 
-	if param and (param & WaveFlags.WAVE_GIDEON) > 0 then
+	if param and param == WaveType.WAVE_GIDEON then
 		for _, call in ipairs(callbacks) do	
-			if call.param and (call.param & param) > 0 then
+			if call.param and CheckGroupType(call.param, param) then
 				call.fun({}, ...)
 			end
 			
@@ -102,7 +140,7 @@ function WaveHelper:RunCallback(callback, param, ...)
 	end
 
 	for _, call in ipairs(callbacks) do
-		if not call.param or not param or (call.param & param) > 0 then
+		if not call.param or not param or CheckGroupType(call.param, param) then
 			call.fun({}, ...)
 		end
 		
@@ -112,15 +150,32 @@ end
 
 
 function WaveHelper:GetWave()
+	if game:IsGreedMode() then
+		return game:GetLevel().GreedModeWave
+	end
 	return WaveHelper.SaveData.WaveCount or 0
 end
 
-
 function WaveHelper:IsValidWaveRoom()
+	if game:IsGreedMode() then return false end
 	local rType = game:GetRoom():GetType()
 	return (rType == RoomType.ROOM_CHALLENGE or
 			rType == RoomType.ROOM_BOSSRUSH or
 			(rType == RoomType.ROOM_BOSS and #Isaac.FindByType(EntityType.ENTITY_GIDEON) > 0))
+end
+
+function WaveHelper:IsGreedMainRoom()
+	if game:GetLevel():GetStage() == 7 then return false end
+	return game:IsGreedMode() and game:GetLevel():GetCurrentRoomIndex() == 84
+end
+
+
+
+local function CheckNRunCallback(callID, check, arg1, arg2, doAfter)
+	if not check or not check() then return end
+	WaveHelper:RunCallback(callID, wFlags, arg1, arg2)
+
+	if doAfter then doAfter() end
 end
 
 
@@ -133,40 +188,55 @@ local function Waves()
 	local wFlags = 0
 	local conEnemies = 0
 
+	local start = function() return not WaveHelper.SaveData.WaveStarted and room:IsAmbushActive() end
+	local finish = function() return WaveHelper.SaveData.WaveStarted and room:IsAmbushDone() end
+
 	if rType == RoomType.ROOM_CHALLENGE then
-		wFlags = WaveFlags.WAVE_CHALLENGE
-		wFlags = wFlags | (game:GetLevel():HasBossChallenge() and WaveFlags.WAVE_BOSS or WaveFlags.WAVE_NORMAL)
+		wFlags = WaveType.WAVE_CHALLENGE +1
+		if game:GetLevel():HasBossChallenge() then wFlags = wFlags +1 end
+
 		conEnemies = Isaac.CountEnemies()
 
 	elseif rType == RoomType.ROOM_BOSSRUSH then
-		wFlags = WaveFlags.WAVE_BOSSRUSH
+		wFlags = WaveType.WAVE_BOSSRUSH
 		conEnemies = Isaac.CountBosses()
 
 	elseif rType == RoomType.ROOM_BOSS and #Isaac.FindByType(EntityType.ENTITY_GIDEON) > 0 then
-		wFlags = WaveFlags.WAVE_GIDEON
+		wFlags = WaveType.WAVE_GIDEON
 		conEnemies = Isaac.CountEnemies() - #Isaac.FindByType(EntityType.ENTITY_GIDEON)
-		IsGideon = true
+
+		start = function() return not WaveHelper.SaveData.WaveStarted and not room:IsClear() end
+		finish = function() return WaveHelper.SaveData.WaveStarted and room:IsClear() end
 	end
 
 
 	local WaveNum = WaveHelper.SaveData.WaveCount or 0
-	if not WaveHelper.SaveData.WaveStarted and (room:IsAmbushActive() or ( IsGideon and not room:IsClear() )) then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_START, wFlags, wFlags)
-		WaveHelper.SaveData.WaveStarted = true
-		WaveHelper.SaveData.WaveCount = WaveNum +1
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
+		start,
+		wFlags, nil,
+		function()
+			WaveHelper.SaveData.WaveStarted = true
+			WaveHelper.SaveData.WaveCount = WaveNum +1
+		end)
 
-	--print(("EnemieCount : ".. EnemieCount .." | ConcurrentEnemies : ".. conEnemies))
-	if EnemieCount == 0 and EnemieCount < conEnemies then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_CHANGE, wFlags, WaveNum, wFlags)
-		LastWave = WaveNum
-		WaveHelper.SaveData.WaveCount = WaveNum +1
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_CLEAR,
+		function() return conEnemies == 0 and EnemieCount > conEnemies end,
+		WaveNum, wFlags)
 
-	if WaveHelper.SaveData.WaveStarted and (room:IsAmbushDone() or ( IsGideon and room:IsClear() )) then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_FINISH, wFlags, wFlags)
-		WaveHelper.SaveData = {}
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_CHANGE,
+		function() return EnemieCount == 0 and EnemieCount < conEnemies end,
+		WaveNum, wFlags,
+		function()
+			LastWave = WaveNum
+			WaveHelper.SaveData.WaveCount = WaveNum +1
+		end)
+
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
+		finish,
+		wFlags, nil,
+		function()
+			WaveHelper.SaveData = {}
+		end)
 
 	EnemieCount = conEnemies
 end
@@ -175,32 +245,39 @@ local GreedLastWave = 0
 local lastRoomClearState = true
 local function WavesGreed()
 	local conGreedWave = game:GetLevel().GreedModeWave
-	local wFlags = WaveFlags.WAVE_GREED
-	wFlags = wFlags | ( (conGreedWave >= game:GetGreedBossWaveNum()) and WaveFlags.WAVE_BOSS or WaveFlags.WAVE_NORMAL )
+	local wFlags = WaveType.WAVE_GREED +1
+
+	if conGreedWave >= game:GetGreedBossWaveNum() then
+		if conGreedWave == game:GetGreedBossWaveNum() +2 then wFlags = wFlags  +1 end
+		wFlags = wFlags +1
+	end
+
 	local conRoomClear = game:GetRoom():IsClear()
 
-	if lastRoomClearState and not conRoomClear then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_START, wFlags, wFlags)
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_START,
+		function() return lastRoomClearState and not conRoomClear end,
+		wFlags)
 
-	if not conRoomClear and conGreedWave > GreedLastWave then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_CHANGE, wFlags, conGreedWave, wFlags)
-		GreedLastWave = conGreedWave
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_CLEAR,
+		function() return not lastRoomClearState and conRoomClear and conGreedWave == GreedLastWave end,
+		conGreedWave, wFlags)
 
-	if not lastRoomClearState and conRoomClear then
-		WaveHelper:RunCallback(WaveCallbacks.WC_WAVE_FINISH, wFlags, wFlags)
-	end
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_CHANGE,
+		function() return not conRoomClear and conGreedWave > GreedLastWave end,
+		conGreedWave, wFlags,
+		function() GreedLastWave = conGreedWave end)
+
+	CheckNRunCallback(WaveCallbacks.WC_WAVE_FINISH,
+		function() return not lastRoomClearState and conRoomClear end,
+		wFlags)
 
 	lastRoomClearState = conRoomClear
 end
 
 
-function WaveUpdate()
-	if game:IsGreedMode() then
-		if game:GetLevel():GetCurrentRoomIndex() == 84 then WavesGreed() end
-	elseif WaveHelper:IsValidWaveRoom() then
-		Waves()
+local function WaveUpdate()
+	if WaveHelper:IsGreedMainRoom() then WavesGreed()
+	elseif WaveHelper:IsValidWaveRoom() then Waves()
 	end
 end
 Mod:AddCallback(ModCallbacks.MC_POST_UPDATE, WaveUpdate)

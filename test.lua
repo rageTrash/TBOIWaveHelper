@@ -1,47 +1,46 @@
 include("waveHelper")
 
-local WaveFlags = WaveHelper.WaveFlags
+local WaveType = WaveHelper.WaveType
 local WaveCallbacks = WaveHelper.WaveCallbacks
 
+local TypeToName = {
+	[WaveType.ALL_WAVES] = "All",
+	[WaveType.WAVE_CHALLENGE] = "Challenge",
+	[WaveType.WAVE_CHALLENGE_NORMAL] = "Normal Challenge",
+	[WaveType.WAVE_CHALLENGE_BOSS] = "Boss Challenge",
+	[WaveType.WAVE_BOSSRUSH] = "Boss Rush",
+	[WaveType.WAVE_GREED] = "Greed",
+	[WaveType.WAVE_GREED_NORMAL] = "Normal Greed",
+	[WaveType.WAVE_GREED_BOSS] = "Boss Greed",
+	[WaveType.WAVE_GREED_EXTRABOSS] = "Deal Boss Greed",
+	[WaveType.WAVE_GIDEON] = "Gideon",
+}
 
-local function FlagsToName(flags)
-	if flags & WaveFlags.WAVE_BOSSRUSH > 0 then
-		return "Boss Rush"
-	elseif flags & WaveFlags.WAVE_GIDEON > 0 then
-		return "Gideon"
-	end
-	local str = ""
-
-	if flags & WaveFlags.WAVE_NORMAL > 0 then
-		str = "Normal"
-	elseif flags & WaveFlags.WAVE_BOSS > 0 then
-		str = "Boss"
-	end
-
-	if flags & WaveFlags.WAVE_CHALLENGE > 0 then
-		str = str .." Challenge"
-	elseif flags & WaveFlags.WAVE_GREED > 0 then
-		str = str .." Greed"
-	end
-	return str
+local function FlagsToName(wType)
+	return " " .. (TypeToName[wType] or "Unknow")
 end
 
 
-local function TestStart(_, wFlags)
-	print((FlagsToName(wFlags) .." Wave Started"))
+local function TestStart(_, wType)
+	print((FlagsToName(wType) .." Wave Started"))
 end
-local function TestChange(_, waveNum, wFlags)
-	print((FlagsToName(wFlags) .." Wave ".. waveNum))
+local function TestClear(_, waveNum, wType)
+	print((FlagsToName(wType) .." Clearing Wave ".. waveNum))
 end
-local function TestFinish(_, wFlags)
-	print((FlagsToName(wFlags) .." Wave Finish"))
+local function TestChange(_, waveNum, wType)
+	print((FlagsToName(wType) .." Wave ".. waveNum))
+end
+local function TestFinish(_, wType)
+	print((FlagsToName(wType) .." Wave Finish"))
 end
 
 
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, TestStart)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, TestChange)
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, TestChange)
 WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, TestFinish)
 
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, TestStart, WaveFlags.WAVE_GIDEON)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, TestChange, WaveFlags.WAVE_GIDEON)
-WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, TestFinish, WaveFlags.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_START, TestStart, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CLEAR, TestChange, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_CHANGE, TestChange, WaveType.WAVE_GIDEON)
+WaveHelper:AddCallback(WaveCallbacks.WC_WAVE_FINISH, TestFinish, WaveType.WAVE_GIDEON)
